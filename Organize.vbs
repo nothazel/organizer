@@ -91,7 +91,6 @@ If Consent = vbYes Then
     ExtensionMap.Add "3g2", "3GPP2 Multimedia Files"
     ExtensionMap.Add "asf", "Advanced Systems Format Media Files"
     ExtensionMap.Add "wma", "Advanced Systems Format Media Files"
-    ExtensionMap.Add "wmv", "Advanced Systems Format Media Files"
     ExtensionMap.Add "svelte", "Svelte Files"
     ExtensionMap.Add "jsx", "JSX Files"
     ExtensionMap.Add "tsx", "TSX Files"
