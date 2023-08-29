@@ -1,6 +1,6 @@
 Set FileSysObj = CreateObject("Scripting.FileSystemObject")
 DesktopPath = FileSysObj.GetAbsolutePathName(".")
-Consent = MsgBox("Do you want to run this script?", vbYesNo, "Consent")
+Consent = MsgBox("Do you want to run this script?", vbYesNo + vbQuestion, "Consent")
 
 If Consent = vbYes Then
     '-- Define a dictionary to map extensions to custom folder names
@@ -97,70 +97,83 @@ If Consent = vbYes Then
     ExtensionMap.Add "go", "GoLang Files"
     ExtensionMap.Add "rs", "Rust Files"
 
-    ' Add more custom mappings here
-
     FileCount = 0
-    
-    ' Add an array variable to store the list of files being moved
     Dim FilesMoved()
     ReDim FilesMoved(0)
     
-    ' Add an array variable to store the list of folders being created
     Dim FoldersCreated()
     ReDim FoldersCreated(0)
 
-For Each File In FileSysObj.GetFolder(DesktopPath).Files
-    Extension = FileSysObj.GetExtensionName(File.Path)
-    If Extension <> "" And LCase(Extension) <> "vbs" Then
-        If ExtensionMap.Exists(Extension) Then
-            TargetFolder = FileSysObj.BuildPath(DesktopPath, ExtensionMap(Extension))
-        Else
-            TargetFolder = FileSysObj.BuildPath(DesktopPath, Extension)
-        End If
-
-        If Not FileSysObj.FolderExists(TargetFolder) Then
-            ReDim Preserve FoldersCreated(UBound(FoldersCreated) + 1)
-            FoldersCreated(UBound(FoldersCreated)) = TargetFolder
-            FileSysObj.CreateFolder(TargetFolder)
-        End If
-
-        TargetFile = FileSysObj.BuildPath(TargetFolder, File.Name)
-        If FileSysObj.FileExists(TargetFile) Then
-            RemoveDuplicate = MsgBox(File.Name &" already exists in "& TargetFolder &". Do you want to remove the duplicate?", vbYesNo, "Remove Duplicate")
-            If RemoveDuplicate = vbYes Then
-                File.Delete
+    For Each File In FileSysObj.GetFolder(DesktopPath).Files
+        Extension = FileSysObj.GetExtensionName(File.Path)
+        If Extension <> "" And LCase(Extension) <> "vbs" Then
+            If ExtensionMap.Exists(Extension) Then
+                TargetFolder = FileSysObj.BuildPath(DesktopPath, ExtensionMap(Extension))
+            Else
+                TargetFolder = FileSysObj.BuildPath(DesktopPath, Extension)
             End If
-        Else
-            If FileCount >= 100 Then
-                WScript.Echo "Files moved so far: (" & UBound(FilesMoved) & "): " & Join(FilesMoved, ", ")
-                ContinueMoving = MsgBox("Do you want to continue moving files?", vbYesNo, "Continue Moving")
-                If ContinueMoving = vbNo Then
+
+            If Not FileSysObj.FolderExists(TargetFolder) Then
+                ReDim Preserve FoldersCreated(UBound(FoldersCreated) + 1)
+                FoldersCreated(UBound(FoldersCreated)) = TargetFolder
+                FileSysObj.CreateFolder(TargetFolder)
+            End If
+
+            TargetFile = FileSysObj.BuildPath(TargetFolder, File.Name)
+            If FileSysObj.FileExists(TargetFile) Then
+                DuplicateAction = MsgBox(File.Name & " already exists in " & TargetFolder & ". What action do you want to take? (Press Yes for Deletion, No for Rename and Cancel for Skipping.)", vbYesNoCancel + vbQuestion, "Duplicate File")
+
+                If DuplicateAction = vbYes Then
+                    File.Delete
+                ElseIf DuplicateAction = vbNo Then
+                    DuplicateNumber = 1
+                    Do While FileSysObj.FileExists(TargetFile)
+                        BaseName = FileSysObj.GetBaseName(TargetFile)
+                        NewName = BaseName & "(" & DuplicateNumber & ")"
+                        NewTargetFile = FileSysObj.BuildPath(TargetFolder, NewName & "." & Extension)
+                        DuplicateNumber = DuplicateNumber + 1
+                        TargetFile = NewTargetFile
+                    Loop
+
+                    ' Add the renamed file to the FilesMoved array
+                    ReDim Preserve FilesMoved(UBound(FilesMoved) + 1)
+                    FilesMoved(UBound(FilesMoved)) = File.Name
+                    FileSysObj.MoveFile File.Path, TargetFile
+                    FileCount = FileCount + 1  ' Count renamed and moved files
+                ElseIf DuplicateAction = vbCancel Then
                     Exit For
-                Else
-                    ReDim FilesMoved(0)
-                    FileCount = 0
                 End If
+            Else
+    If FileCount >= 100 Then
+     MsgBox "Files moved so far: (" & UBound(FilesMoved) & "): " & Join(FilesMoved, ", "), vbInformation, "Information"
+    
+Dim ContinueMoving
+     ContinueMoving = MsgBox("Do you want to continue moving files?", vbYesNo + vbQuestion, "Continue Moving")
+         If ContinueMoving = vbNo Then
+            Exit For
+             Else
+        ReDim FilesMoved(0)
+     FileCount = 0
+    End If
+End If
+    ReDim Preserve FilesMoved(UBound(FilesMoved) + 1)
+         FilesMoved(UBound(FilesMoved)) = File.Name
+             FileSysObj.MoveFile File.Path, TargetFile
+                FileCount = FileCount + 1
             End If
-
-            ReDim Preserve FilesMoved(UBound(FilesMoved) + 1)
-            FilesMoved(UBound(FilesMoved)) = File.Name
-            FileSysObj.MoveFile File.Path, TargetFile
-            FileCount = FileCount + 1
         End If
-    End If
-Next
+    Next
     
-    ' Print out the final list of files that have been moved and folders that have been created.
-    If UBound(FilesMoved) > 0 Then
-        WScript.Echo "Files Moved (" & UBound(FilesMoved) & "): " & Join(FilesMoved, ", ")
-    Else
-        WScript.Echo "Files Moved: None"
+ ' Print out the final list of files that have been moved and folders that have been created.
+If UBound(FilesMoved) > 0 Then
+    MsgBox "Files Moved (" & UBound(FilesMoved) & "): " & Join(FilesMoved, ", "), vbInformation, "Output"
+Else
+    MsgBox "Files Moved: None", vbInformation, "Output"
+End If
+
+If UBound(FoldersCreated) > 0 Then
+    MsgBox "Folders created (" & UBound(FoldersCreated) & "): " & Join(FoldersCreated, ", "), vbInformation, "Output"
+Else
+    MsgBox "Folders created: None", vbInformation, "Output"
     End If
-    
-    If UBound(FoldersCreated) > 0 Then
-        WScript.Echo "Folders created (" & UBound(FoldersCreated) & "): " & Join(FoldersCreated, ", ")
-    Else
-        WScript.Echo "Folders created: None"
-    End If
-    
 End If
